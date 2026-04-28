@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Budget Tracker">
+<meta name="theme-color" content="#080B12">
+<title>Budget Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* ── Reset ───────────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;-webkit-tap-highlight-color:transparent}
+body{
+  min-height:100%;
+  background:#080B12;
+  color:#E8EDF5;
+  font-family:'DM Sans',sans-serif;
+  font-size:15px;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* ── Variables ───────────────────────────────────────────────────────────── */
+:root{
+  --bg:#080B12;
+  --card:#0F1320;
+  --card2:#141928;
+  --border:#1E2538;
+  --accent:#00C896;
+  --accent2:#00A87D;
+  --pink:#E040FB;
+  --gold:#F5C542;
+  --red:#FF4D6D;
+  --blue:#4D9FFF;
+  --text:#E8EDF5;
+  --sub:#6B7A99;
+  --input:#0C1018;
+  --r:14px;
+  --r-sm:8px;
+  --mono:'Space Mono',monospace;
+  --sans:'DM Sans',sans-serif;
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.app{display:flex;flex-direction:column;min-height:100vh}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.hdr{
+  position:sticky;top:0;z-index:100;
+  background:rgba(8,11,18,.95);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  padding:10px 16px;
+  display:flex;align-items:center;gap:10px;
+}
+.hdr-brand{flex:1;min-width:0}
+.hdr-title{
+  font-family:var(--mono);font-size:12px;font-weight:700;
+  color:var(--accent);letter-spacing:.1em;text-transform:uppercase;
+}
+.hdr-date{font-size:11px;color:var(--sub);margin-top:1px}
+
+/* Desktop nav */
+.hdr-nav{display:none;gap:2px}
+@media(min-width:600px){.hdr-nav{display:flex}}
+.nav-btn{
+  padding:5px 12px;border-radius:40px;font-size:12px;font-weight:500;
+  color:var(--sub);cursor:pointer;border:1px solid transparent;
+  background:none;font-family:var(--sans);transition:all .15s;
+}
+.nav-btn.on{background:var(--card);border-color:var(--border);color:var(--text)}
+
+/* Quick add */
+.add-btn{
+  display:flex;align-items:center;gap:6px;
+  background:var(--accent);color:#000;border:none;
+  border-radius:40px;padding:9px 16px;
+  font-family:var(--sans);font-size:13px;font-weight:700;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+  transition:all .15s;
+}
+.add-btn:active{transform:scale(.96);background:var(--accent2)}
+.add-btn svg{width:15px;height:15px;flex-shrink:0}
+
+/* ── Main ────────────────────────────────────────────────────────────────── */
+.main{
+  flex:1;padding:14px;
+  max-width:960px;margin:0 auto;width:100%;
+}
+@media(min-width:600px){.main{padding:20px 24px}}
+
+/* ── Loading ─────────────────────────────────────────────────────────────── */
+#loading{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  height:60vh;gap:14px;
+}
+.spin{
+  width:28px;height:28px;
+  border:2px solid var(--border);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin-txt{font-family:var(--mono);font-size:10px;color:var(--sub);letter-spacing:.08em}
+
+/* ── Error ───────────────────────────────────────────────────────────────── */
+#error-msg{
+  display:none;text-align:center;padding:40px 20px;
+  color:var(--sub);font-size:13px;
+}
+.retry-btn{
+  margin-top:16px;background:var(--accent);color:#000;
+  border:none;border-radius:var(--r-sm);padding:10px 20px;
+  font-size:13px;font-weight:600;cursor:pointer;
+  font-family:var(--sans);
+}
+
+/* ── Pay banner ──────────────────────────────────────────────────────────── */
+.pay-banner{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-left:3px solid var(--gold);
+  border-radius:var(--r);
+  padding:12px 16px;
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:14px;
+}
+.pay-lbl{font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:.07em}
+.pay-date{font-size:13px;font-weight:600;color:var(--text);margin-top:2px}
+.pay-num{font-family:var(--mono);font-size:30px;font-weight:700;color:var(--gold);line-height:1}
+.pay-unit{font-size:10px;color:var(--sub);text-align:right;margin-top:2px}
+
+/* ── KPI strip ───────────────────────────────────────────────────────────── */
+.kpis{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;margin-bottom:14px;
+}
+@media(min-width:600px){.kpis{grid-template-columns:repeat(4,1fr);gap:12px}}
+
+.kpi{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:12px 14px;
+  position:relative;overflow:hidden;
+  animation:fadeUp .3s ease both;
+}
+.kpi::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:2px;
+  background:var(--kpi-accent,var(--accent));
+}
+.kpi-lbl{font-size:10px;font-weight:500;color:var(--sub);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.kpi-val{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--kpi-color,var(--text));line-height:1}
+.kpi-note{font-size:10px;color:var(--sub);margin-top:3px}
+
+.kpi:nth-child(1){animation-delay:.05s;--kpi-accent:var(--accent);--kpi-color:var(--accent)}
+.kpi:nth-child(2){animation-delay:.10s;--kpi-accent:var(--red);--kpi-color:var(--red)}
+.kpi:nth-child(3){animation-delay:.15s;--kpi-accent:var(--gold)}
+.kpi:nth-child(4){animation-delay:.20s;--kpi-accent:var(--pink);--kpi-color:var(--pink)}
+
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* ── Section ─────────────────────────────────────────────────────────────── */
+.sec{margin-bottom:18px}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.sec-title{font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.1em}
+.sec-action{
+  font-size:11px;color:var(--sub);background:none;
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:3px 10px;cursor:pointer;font-family:var(--sans);
+  transition:all .15s;
+}
+.sec-action:active{color:var(--accent);border-color:var(--accent)}
+
+/* ── Desktop 2-col ───────────────────────────────────────────────────────── */
+@media(min-width:600px){
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+}
+
+/* ── Bucket cards ────────────────────────────────────────────────────────── */
+.buckets{display:flex;flex-direction:column;gap:8px}
+@media(min-width:600px){
+  .buckets{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+}
+
+.bucket{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:13px 14px;
+}
+.bucket-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.bucket-name{font-size:13px;font-weight:600;color:var(--text)}
+.bucket-dl{font-size:10px;color:var(--sub);margin-top:2px}
+.bucket-saved{font-family:var(--mono);font-size:14px;font-weight:700;text-align:right}
+.bucket-of{font-size:10px;color:var(--sub);text-align:right}
+.track{height:3px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:6px}
+.fill{height:100%;border-radius:99px;transition:width .7s cubic-bezier(.4,0,.2,1)}
+.bucket-foot{display:flex;justify-content:space-between;align-items:center}
+.bucket-pct{font-family:var(--mono);font-size:10px;color:var(--sub)}
+.bucket-pp{font-size:10px;color:var(--sub)}
+.bucket-pp b{font-family:var(--mono);color:var(--gold);font-weight:700}
+
+/* bucket accent colors */
+.bc0{--bc:var(--accent)} .bc1{--bc:var(--pink)} .bc2{--bc:var(--gold)}
+.bc3{--bc:var(--blue)}   .bc4{--bc:#FF8C42}     .bc5{--bc:#00CED1}
+.bc6{--bc:#DA70D6}
+
+/* ── Transactions ─────────────────────────────────────────────────────────── */
+.txs{display:flex;flex-direction:column;gap:2px}
+.tx{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 12px;
+  background:var(--card);border-radius:var(--r-sm);
+  border:1px solid var(--border);
+}
+.tx-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--dot,var(--sub))}
+.tx-info{flex:1;min-width:0}
+.tx-cat{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tx-note{font-size:10px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tx-r{text-align:right;flex-shrink:0}
+.tx-amt{font-family:var(--mono);font-size:12px;font-weight:700}
+.tx-amt.pos{color:var(--accent)} .tx-amt.neg{color:var(--red)}
+.tx-dt{font-size:10px;color:var(--sub)}
+
+/* category dot colors */
+.dc-Housing{--dot:var(--blue)}       .dc-Groceries{--dot:var(--accent)}
+.dc-Transport{--dot:var(--gold)}     .dc-Phone{--dot:var(--pink)}
+.dc-Internet{--dot:var(--pink)}      .dc-Insurance{--dot:#FF8C42}
+.dc-Dining{--dot:var(--red)}         .dc-Entertainment{--dot:#00CED1}
+.dc-Health{--dot:#FF6B6B}            .dc-Clothing{--dot:#DA70D6}
+.dc-Subscriptions{--dot:#9B59B6}     .dc-Income{--dot:var(--accent)}
+.dc-SavingsTransfer{--dot:var(--gold)}
+
+/* ── Empty ───────────────────────────────────────────────────────────────── */
+.empty{
+  text-align:center;padding:28px 16px;color:var(--sub);
+  font-size:12px;background:var(--card);
+  border-radius:var(--r);border:1px solid var(--border);
+}
+
+/* ── Last updated ────────────────────────────────────────────────────────── */
+.updated{
+  text-align:center;font-size:10px;color:var(--sub);
+  font-family:var(--mono);letter-spacing:.04em;
+  padding:12px 0 6px;
+}
+
+/* ── Slide-up panel ──────────────────────────────────────────────────────── */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.75);
+  z-index:200;opacity:0;pointer-events:none;
+  transition:opacity .25s;backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+.overlay.on{opacity:1;pointer-events:all}
+
+.panel{
+  position:fixed;bottom:0;left:0;right:0;z-index:201;
+  background:var(--card);border-top:1px solid var(--border);
+  border-radius:20px 20px 0 0;
+  padding:0 18px env(safe-area-inset-bottom,20px);
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  max-height:92vh;overflow-y:auto;
+}
+.panel.on{transform:translateY(0)}
+
+@media(min-width:600px){
+  .panel{
+    max-width:480px;left:50%;right:auto;
+    transform:translateX(-50%) translateY(100%);
+    border-radius:20px 20px 0 0;
+  }
+  .panel.on{transform:translateX(-50%) translateY(0)}
+}
+
+.panel-handle{
+  width:32px;height:3px;background:var(--border);
+  border-radius:99px;margin:10px auto 16px;
+}
+.panel-title{
+  font-family:var(--mono);font-size:12px;font-weight:700;
+  color:var(--accent);text-transform:uppercase;letter-spacing:.09em;
+  margin-bottom:16px;text-align:center;
+}
+
+/* ── Form fields ─────────────────────────────────────────────────────────── */
+.field{margin-bottom:12px}
+.field label{
+  display:block;font-size:10px;font-weight:600;
+  color:var(--sub);text-transform:uppercase;letter-spacing:.08em;
+  margin-bottom:5px;
+}
+.field input,.field select{
+  width:100%;background:var(--input);
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  color:var(--text);font-family:var(--sans);font-size:15px;
+  padding:11px 13px;appearance:none;-webkit-appearance:none;
+  outline:none;transition:border-color .15s;
+}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field select option{background:var(--card2)}
+
+.amt-wrap{position:relative}
+.amt-pre{
+  position:absolute;left:13px;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:20px;font-weight:700;
+  color:var(--accent);pointer-events:none;
+}
+.amt-wrap input{
+  padding-left:28px;
+  font-family:var(--mono);font-size:20px;font-weight:700;
+  color:var(--accent);text-align:left;
+}
+.amt-wrap input::placeholder{color:var(--sub)}
+
+/* ── Submit ──────────────────────────────────────────────────────────────── */
+.submit{
+  width:100%;background:var(--accent);color:#000;
+  border:none;border-radius:var(--r);padding:14px;
+  font-family:var(--sans);font-size:15px;font-weight:700;
+  cursor:pointer;margin-top:6px;margin-bottom:8px;
+  transition:all .15s;letter-spacing:.01em;
+}
+.submit:active{transform:scale(.98);background:var(--accent2)}
+.submit:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+.toast{
+  position:fixed;top:72px;left:50%;
+  transform:translateX(-50%) translateY(-12px);
+  background:var(--accent);color:#000;
+  padding:9px 18px;border-radius:40px;
+  font-size:13px;font-weight:600;z-index:300;
+  opacity:0;transition:all .22s;white-space:nowrap;
+  pointer-events:none;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--red);color:#fff}
+
+/* ── Tab panels ──────────────────────────────────────────────────────────── */
+.tab{display:none}
+.tab.on{display:block}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header class="hdr">
+    <div class="hdr-brand">
+      <div class="hdr-title">Budget Tracker</div>
+      <div class="hdr-date" id="hdr-date">Loading...</div>
+    </div>
+    <nav class="hdr-nav">
+      <button class="nav-btn on" onclick="showTab('dash')">Dashboard</button>
+      <button class="nav-btn"   onclick="showTab('bkts')">Buckets</button>
+      <button class="nav-btn"   onclick="showTab('txs')">Transactions</button>
+    </nav>
+    <button class="add-btn" onclick="openPanel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Add
+    </button>
+  </header>
+
+  <main class="main">
+
+    <!-- Loading -->
+    <div id="loading">
+      <div class="spin"></div>
+      <div class="spin-txt">CONNECTING TO TRACKER...</div>
+    </div>
+
+    <!-- Error -->
+    <div id="error-msg">
+      <div>Could not load data. Check your connection.</div>
+      <button class="retry-btn" onclick="loadData()">Retry</button>
+    </div>
+
+    <!-- Dashboard tab -->
+    <div id="tab-dash" class="tab on" style="display:none">
+
+      <!-- Pay countdown -->
+      <div class="pay-banner">
+        <div>
+          <div class="pay-lbl">Next Paycheque</div>
+          <div class="pay-date" id="next-pay"></div>
+        </div>
+        <div>
+          <div class="pay-num" id="days-left">—</div>
+          <div class="pay-unit">days away</div>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-lbl">Month Income</div>
+          <div class="kpi-val" id="k-income">$0.00</div>
+          <div class="kpi-note">This month</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Month Spent</div>
+          <div class="kpi-val" id="k-spent">$0.00</div>
+          <div class="kpi-note">This month</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Net Position</div>
+          <div class="kpi-val" id="k-net">$0.00</div>
+          <div class="kpi-note">Income minus spend</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Total Saved</div>
+          <div class="kpi-val" id="k-saved">$0.00</div>
+          <div class="kpi-note">All buckets</div>
+        </div>
+      </div>
+
+      <!-- Two-col grid on desktop -->
+      <div class="two-col">
+        <div class="sec">
+          <div class="sec-hdr">
+            <div class="sec-title">Savings Buckets</div>
+          </div>
+          <div class="buckets" id="bkts-dash"></div>
+        </div>
+        <div class="sec">
+          <div class="sec-hdr">
+            <div class="sec-title">Recent Transactions</div>
+            <button class="sec-action" onclick="loadData()">Refresh</button>
+          </div>
+          <div class="txs" id="txs-dash"></div>
+        </div>
+      </div>
+
+      <div class="updated" id="updated-txt"></div>
+    </div>
+
+    <!-- Buckets tab -->
+    <div id="tab-bkts" class="tab" style="display:none">
+      <div class="sec">
+        <div class="sec-hdr"><div class="sec-title">All Savings Goals</div></div>
+        <div class="buckets" id="bkts-full"></div>
+      </div>
+    </div>
+
+    <!-- Transactions tab -->
+    <div id="tab-txs" class="tab" style="display:none">
+      <div class="sec">
+        <div class="sec-hdr">
+          <div class="sec-title">Recent Entries</div>
+          <button class="sec-action" onclick="loadData()">Refresh</button>
+        </div>
+        <div class="txs" id="txs-full"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Overlay -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+
+<!-- Quick Add Panel -->
+<div class="panel" id="panel">
+  <div class="panel-handle"></div>
+  <div class="panel-title">Log Transaction</div>
+
+  <div class="field">
+    <label>Date</label>
+    <input type="date" id="f-date">
+  </div>
+  <div class="field">
+    <label>Amount</label>
+    <div class="amt-wrap">
+      <span class="amt-pre">$</span>
+      <input type="number" id="f-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+    </div>
+  </div>
+  <div class="field">
+    <label>Category</label>
+    <select id="f-cat"></select>
+  </div>
+  <div class="field">
+    <label>Bucket</label>
+    <select id="f-bkt"></select>
+  </div>
+  <div class="field">
+    <label>Note <span style="color:var(--sub);font-weight:400">(optional)</span></label>
+    <input type="text" id="f-note" placeholder="Merchant, description...">
+  </div>
+  <button class="submit" id="sub-btn" onclick="submitTx()">Log Transaction</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG — paste your Apps Script Web App URL here ──────────────────────────
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJK-G1hdOzT3sk86W02UqxqDIcO_77f45bxDp-6J6gHlvWWwGTMvOjWBGTxXypAyBf/exec';
+// Example:
+// const SCRIPT_URL = 'https://script.google.com/macros/s/AKfyc.../exec';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let state = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('f-date').value = today();
+  loadData();
+});
+
+// ── Load data from Apps Script ────────────────────────────────────────────────
+function loadData() {
+  show('loading'); hide('error-msg');
+  hideTabs();
+
+  fetch(SCRIPT_URL)
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      state = data;
+      populateDropdowns(data);
+      render(data);
+      hide('loading');
+      showCurrentTab();
+    })
+    .catch(err => {
+      hide('loading');
+      show('error-msg');
+      console.error('Load error:', err);
+    });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render(d) {
+  // Header date
+  document.getElementById('hdr-date').textContent = d.lastUpdated;
+
+  // Pay countdown
+  document.getElementById('next-pay').textContent  = d.nextPayDate;
+  document.getElementById('days-left').textContent = d.daysToNext;
+
+  // KPIs
+  document.getElementById('k-income').textContent = fmt(d.monthIncome);
+  document.getElementById('k-spent').textContent  = fmt(d.monthSpent);
+
+  const net = document.getElementById('k-net');
+  net.textContent = fmt(Math.abs(d.netPosition));
+  net.style.color = d.netPosition >= 0 ? 'var(--gold)' : 'var(--red)';
+
+  document.getElementById('k-saved').textContent = fmt(d.totalSaved);
+
+  // Updated
+  document.getElementById('updated-txt').textContent = 'Updated ' + d.lastUpdated;
+
+  // Buckets
+  renderBuckets(d.buckets, 'bkts-dash');
+  renderBuckets(d.buckets, 'bkts-full');
+
+  // Transactions
+  renderTxs(d.transactions, 'txs-dash');
+  renderTxs(d.transactions, 'txs-full');
+}
+
+function renderBuckets(buckets, id) {
+  const el = document.getElementById(id);
+  if (!buckets || !buckets.length) {
+    el.innerHTML = '<div class="empty">No bucket data yet.</div>';
+    return;
+  }
+  el.innerHTML = buckets.map((b, i) => `
+    <div class="bucket bc${i}">
+      <div class="bucket-top">
+        <div>
+          <div class="bucket-name">${x(b.name)}</div>
+          <div class="bucket-dl">${x(b.deadline)}</div>
+        </div>
+        <div>
+          <div class="bucket-saved" style="color:var(--bc)">${fmt(b.saved)}</div>
+          <div class="bucket-of">of ${b.target > 0 ? fmt(b.target) : 'TBD'}</div>
+        </div>
+      </div>
+      <div class="track">
+        <div class="fill" style="width:${b.pct}%;background:var(--bc)"></div>
+      </div>
+      <div class="bucket-foot">
+        <div class="bucket-pct">${b.pct}%</div>
+        ${b.perPay > 0
+          ? `<div class="bucket-pp"><b>${fmt(b.perPay)}</b>/pay</div>`
+          : `<div class="bucket-pp" style="color:var(--sub)">Set target</div>`}
+      </div>
+    </div>`).join('');
+}
+
+function renderTxs(txs, id) {
+  const el = document.getElementById(id);
+  if (!txs || !txs.length) {
+    el.innerHTML = '<div class="empty">No transactions yet.<br>Tap + Add to log your first entry.</div>';
+    return;
+  }
+  el.innerHTML = txs.map(t => {
+    const pos  = t.amount > 0;
+    const dcls = 'dc-' + (t.category || 'Other').replace(/\s+/g, '');
+    return `
+    <div class="tx ${dcls}">
+      <div class="tx-dot"></div>
+      <div class="tx-info">
+        <div class="tx-cat">${x(t.category)}</div>
+        <div class="tx-note">${x(t.notes || t.source || '')}</div>
+      </div>
+      <div class="tx-r">
+        <div class="tx-amt ${pos ? 'pos' : 'neg'}">${pos ? '+' : '-'}${fmt(Math.abs(t.amount))}</div>
+        <div class="tx-dt">${x(t.date)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Dropdowns ─────────────────────────────────────────────────────────────────
+function populateDropdowns(d) {
+  const catSel = document.getElementById('f-cat');
+  const bktSel = document.getElementById('f-bkt');
+  if (catSel.options.length > 0) return; // already populated
+  (d.categories || []).forEach(c => {
+    catSel.add(new Option(c, c));
+  });
+  (d.bucketNames || []).forEach(b => {
+    bktSel.add(new Option(b, b));
+  });
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────────
+function openPanel() {
+  document.getElementById('panel').classList.add('on');
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById('f-date').value = today();
+  setTimeout(() => document.getElementById('f-amount').focus(), 320);
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('on');
+  document.getElementById('overlay').classList.remove('on');
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+function submitTx() {
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  if (!amount || amount <= 0) { showToast('Enter a valid amount', true); return; }
+
+  const btn = document.getElementById('sub-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const payload = {
+    date:     document.getElementById('f-date').value,
+    amount:   amount,
+    category: document.getElementById('f-cat').value,
+    bucket:   document.getElementById('f-bkt').value,
+    notes:    document.getElementById('f-note').value.trim()
+  };
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    body:   JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(res => {
+    btn.disabled = false;
+    btn.textContent = 'Log Transaction';
+    if (res.success) {
+      closePanel();
+      showToast('Transaction logged');
+      document.getElementById('f-amount').value = '';
+      document.getElementById('f-note').value   = '';
+      setTimeout(loadData, 1000);
+    } else {
+      showToast('Error: ' + (res.error || 'Unknown'), true);
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.textContent = 'Log Transaction';
+    showToast('Connection failed. Try again.', true);
+  });
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+let currentTab = 'dash';
+
+function showTab(name) {
+  currentTab = name;
+  ['dash','bkts','txs'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-btn').forEach((btn, i) => {
+    const tabs = ['dash','bkts','txs'];
+    btn.classList.toggle('on', tabs[i] === name);
+  });
+}
+
+function showCurrentTab() { showTab(currentTab); }
+function hideTabs() {
+  ['dash','bkts','txs'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = 'none';
+  });
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isErr ? ' err' : '');
+  requestAnimationFrame(() => {
+    t.classList.add('on');
+    setTimeout(() => t.classList.remove('on'), 2800);
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmt(n) {
+  return '$' + Math.abs(parseFloat(n) || 0).toLocaleString('en-CA', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+}
+
+function x(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function today() { return new Date().toISOString().split('T')[0]; }
+function show(id) { document.getElementById(id).style.display = ''; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+// ── Swipe to close panel ──────────────────────────────────────────────────────
+let _sy = 0;
+document.getElementById('panel').addEventListener('touchstart', e => {
+  _sy = e.touches[0].clientY;
+}, { passive: true });
+document.getElementById('panel').addEventListener('touchend', e => {
+  if (e.changedTouches[0].clientY - _sy > 55) closePanel();
+}, { passive: true });
+</script>
+</body>
+</html>
