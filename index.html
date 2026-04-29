@@ -350,6 +350,36 @@ body{
 /* ── Tab panels ──────────────────────────────────────────────────────────── */
 .tab{display:none}
 .tab.on{display:block}
+
+/* ── Edit panel ──────────────────────────────────────────────────────────── */
+#edit-panel{
+  position:fixed;bottom:0;left:0;right:0;z-index:201;
+  background:var(--card);border-top:1px solid var(--border);
+  border-radius:20px 20px 0 0;
+  padding:0 18px env(safe-area-inset-bottom,20px);
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  max-height:92vh;overflow-y:auto;
+}
+#edit-panel.on{transform:translateY(0)}
+@media(min-width:600px){
+  #edit-panel{
+    max-width:480px;left:50%;right:auto;
+    transform:translateX(-50%) translateY(100%);
+    border-radius:20px 20px 0 0;
+  }
+  #edit-panel.on{transform:translateX(-50%) translateY(0)}
+}
+.edit-orig{
+  background:var(--card2);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:10px 13px;margin-bottom:14px;
+  font-size:11px;color:var(--sub);line-height:1.6;
+}
+.edit-orig b{color:var(--text);font-weight:600}
+
+/* Tappable transaction rows */
+.tx{cursor:pointer;transition:background .15s,border-color .15s}
+.tx:active{background:var(--card2);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -470,7 +500,7 @@ body{
 </div>
 
 <!-- Overlay -->
-<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="overlay" id="overlay" onclick="closePanel();closeEditPanel()"></div>
 
 <!-- Quick Add Panel -->
 <div class="panel" id="panel">
@@ -501,6 +531,30 @@ body{
     <input type="text" id="f-note" placeholder="Merchant, description...">
   </div>
   <button class="submit" id="sub-btn" onclick="submitTx()">Log Transaction</button>
+</div>
+
+<!-- Edit Panel -->
+<div class="panel" id="edit-panel">
+  <div class="panel-handle"></div>
+  <div class="panel-title">Edit Transaction</div>
+  <div class="edit-orig" id="edit-orig"></div>
+
+  <div class="field">
+    <label>Amount</label>
+    <div class="amt-wrap">
+      <span class="amt-pre">$</span>
+      <input type="number" id="e-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+    </div>
+  </div>
+  <div class="field">
+    <label>Category</label>
+    <select id="e-cat"></select>
+  </div>
+  <div class="field">
+    <label>Note</label>
+    <input type="text" id="e-note" placeholder="Merchant, description...">
+  </div>
+  <button class="submit" id="edit-btn" onclick="submitEdit()">Save Changes</button>
 </div>
 
 <!-- Toast -->
@@ -616,8 +670,9 @@ function renderTxs(txs, id) {
   el.innerHTML = txs.map(t => {
     const pos  = t.amount > 0;
     const dcls = 'dc-' + (t.category || 'Other').replace(/\s+/g, '');
+    const safe = encodeURIComponent(JSON.stringify(t));
     return `
-    <div class="tx ${dcls}">
+    <div class="tx ${dcls}" onclick="openEditPanel(decodeURIComponent('${safe}'))">
       <div class="tx-dot"></div>
       <div class="tx-info">
         <div class="tx-cat">${x(t.category)}</div>
@@ -633,11 +688,13 @@ function renderTxs(txs, id) {
 
 // ── Dropdowns ─────────────────────────────────────────────────────────────────
 function populateDropdowns(d) {
-  const catSel = document.getElementById('f-cat');
-  const bktSel = document.getElementById('f-bkt');
+  const catSel  = document.getElementById('f-cat');
+  const bktSel  = document.getElementById('f-bkt');
+  const eCatSel = document.getElementById('e-cat');
   if (catSel.options.length > 0) return; // already populated
   (d.categories || []).forEach(c => {
     catSel.add(new Option(c, c));
+    eCatSel.add(new Option(c, c));
   });
   (d.bucketNames || []).forEach(b => {
     bktSel.add(new Option(b, b));
@@ -699,6 +756,77 @@ function submitTx() {
   });
 }
 
+// ── Edit Panel ────────────────────────────────────────────────────────────────
+let editRef = null;
+
+function openEditPanel(jsonStr) {
+  const t = JSON.parse(jsonStr);
+  editRef  = t.ref;
+
+  // Show original details so user knows what they're editing
+  const pos = t.amount > 0;
+  document.getElementById('edit-orig').innerHTML =
+    `<b>${x(t.date)}</b> &nbsp;|&nbsp; <b>${pos ? '+' : '-'}${fmt(Math.abs(t.amount))}</b>`+
+    ` &nbsp;|&nbsp; ${x(t.source || 'Manual')}<br>${x(t.notes || '')}`;
+
+  // Pre-fill fields with current values
+  document.getElementById('e-amount').value = Math.abs(t.amount);
+  const eCat = document.getElementById('e-cat');
+  for (let i = 0; i < eCat.options.length; i++) {
+    if (eCat.options[i].value === t.category) { eCat.selectedIndex = i; break; }
+  }
+  document.getElementById('e-note').value = t.notes || '';
+
+  document.getElementById('edit-panel').classList.add('on');
+  document.getElementById('overlay').classList.add('on');
+}
+
+function closeEditPanel() {
+  document.getElementById('edit-panel').classList.remove('on');
+  document.getElementById('overlay').classList.remove('on');
+  editRef = null;
+}
+
+function submitEdit() {
+  if (!editRef) { showToast('No transaction selected', true); return; }
+  const amount = parseFloat(document.getElementById('e-amount').value);
+  if (!amount || amount <= 0) { showToast('Enter a valid amount', true); return; }
+
+  const btn = document.getElementById('edit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const payload = {
+    action:   'edit',
+    ref:      editRef,
+    amount:   amount,
+    category: document.getElementById('e-cat').value,
+    notes:    document.getElementById('e-note').value.trim()
+  };
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    body:   JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(res => {
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+    if (res.success) {
+      closeEditPanel();
+      showToast('Transaction updated');
+      setTimeout(loadData, 800);
+    } else {
+      showToast('Error: ' + (res.error || 'Unknown'), true);
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+    showToast('Connection failed. Try again.', true);
+  });
+}
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 let currentTab = 'dash';
 
@@ -753,6 +881,13 @@ document.getElementById('panel').addEventListener('touchstart', e => {
 }, { passive: true });
 document.getElementById('panel').addEventListener('touchend', e => {
   if (e.changedTouches[0].clientY - _sy > 55) closePanel();
+}, { passive: true });
+
+document.getElementById('edit-panel').addEventListener('touchstart', e => {
+  _sy = e.touches[0].clientY;
+}, { passive: true });
+document.getElementById('edit-panel').addEventListener('touchend', e => {
+  if (e.changedTouches[0].clientY - _sy > 55) closeEditPanel();
 }, { passive: true });
 </script>
 </body>
