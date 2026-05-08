@@ -87,6 +87,19 @@ body{
 .add-btn:active{transform:scale(.96);background:var(--accent2)}
 .add-btn svg{width:15px;height:15px;flex-shrink:0}
 
+/* Save to bucket button */
+.save-btn{
+  display:flex;align-items:center;gap:6px;
+  background:transparent;color:var(--accent);
+  border:1px solid var(--accent);
+  border-radius:40px;padding:8px 14px;
+  font-family:var(--sans);font-size:13px;font-weight:700;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+  transition:all .15s;
+}
+.save-btn:active{transform:scale(.96);background:rgba(0,200,150,.12)}
+.save-btn svg{width:14px;height:14px;flex-shrink:0}
+
 /* ── Main ────────────────────────────────────────────────────────────────── */
 .main{
   flex:1;padding:14px;
@@ -397,6 +410,12 @@ body{
       <button class="nav-btn"   onclick="showTab('bkts')">Buckets</button>
       <button class="nav-btn"   onclick="showTab('txs')">Transactions</button>
     </nav>
+    <button class="save-btn" onclick="openSavingsPanel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 12 20 22 4 22 4 12"/><rect x="8" y="2" width="8" height="8"/><polyline points="16 2 16 8 8 8"/>
+      </svg>
+      Save
+    </button>
     <button class="add-btn" onclick="openPanel()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
         <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -501,7 +520,7 @@ body{
 </div>
 
 <!-- Overlay -->
-<div class="overlay" id="overlay" onclick="closePanel();closeEditPanel()"></div>
+<div class="overlay" id="overlay" onclick="closePanel();closeEditPanel();closeSavingsPanel()"></div>
 
 <!-- Quick Add Panel -->
 <div class="panel" id="panel">
@@ -556,6 +575,42 @@ body{
     <input type="text" id="e-note" placeholder="Merchant, description...">
   </div>
   <button class="submit" id="edit-btn" onclick="submitEdit()">Save Changes</button>
+</div>
+
+<!-- Savings Transfer Panel -->
+<div class="panel" id="sav-panel">
+  <div class="panel-handle"></div>
+  <div class="panel-title" style="color:var(--gold)">Transfer to Savings</div>
+
+  <div class="field">
+    <label>Date</label>
+    <input type="date" id="s-date">
+  </div>
+  <div class="field">
+    <label>Amount</label>
+    <div class="amt-wrap">
+      <span class="amt-pre" style="color:var(--gold)">$</span>
+      <input type="number" id="s-amount" placeholder="0.00" step="0.01" min="0.01" inputmode="decimal" style="color:var(--gold)">
+    </div>
+  </div>
+  <div class="field">
+    <label>Savings Goal</label>
+    <select id="s-bucket">
+      <option value="">Select a goal...</option>
+      <option value="Holiday Fund">Holiday Fund</option>
+      <option value="Moving Fund">Moving Fund</option>
+      <option value="Car Down Payment">Car Down Payment</option>
+      <option value="Emergency Buffer">Emergency Buffer</option>
+      <option value="New Furniture Fund">New Furniture Fund</option>
+      <option value="Tech Upgrade Fund">Tech Upgrade Fund</option>
+      <option value="Travel 2027 Fund">Travel 2027 Fund</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Note <span style="color:var(--sub);font-weight:400">(optional)</span></label>
+    <input type="text" id="s-note" placeholder="e.g. Payday transfer, bonus...">
+  </div>
+  <button class="submit" id="sav-btn" onclick="submitSavings()" style="background:var(--gold);color:#000">Log Transfer</button>
 </div>
 
 <!-- Toast -->
@@ -889,6 +944,75 @@ document.getElementById('edit-panel').addEventListener('touchstart', e => {
 }, { passive: true });
 document.getElementById('edit-panel').addEventListener('touchend', e => {
   if (e.changedTouches[0].clientY - _sy > 55) closeEditPanel();
+}, { passive: true });
+
+// ── Savings Panel ─────────────────────────────────────────────────────────────
+function openSavingsPanel() {
+  document.getElementById('s-date').value = today();
+  document.getElementById('s-amount').value = '';
+  document.getElementById('s-bucket').value = '';
+  document.getElementById('s-note').value = '';
+  const btn = document.getElementById('sav-btn');
+  btn.textContent = 'Log Transfer';
+  btn.disabled = false;
+  document.getElementById('sav-panel').classList.add('on');
+  document.getElementById('overlay').classList.add('on');
+  setTimeout(() => document.getElementById('s-amount').focus(), 320);
+}
+
+function closeSavingsPanel() {
+  document.getElementById('sav-panel').classList.remove('on');
+  document.getElementById('overlay').classList.remove('on');
+}
+
+function submitSavings() {
+  const amount = parseFloat(document.getElementById('s-amount').value);
+  const bucket = document.getElementById('s-bucket').value;
+
+  if (!amount || amount <= 0)  { showToast('Enter a valid amount', true); return; }
+  if (!bucket)                  { showToast('Select a savings goal', true); return; }
+
+  const btn = document.getElementById('sav-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const payload = {
+    action:  'savings',
+    date:    document.getElementById('s-date').value,
+    amount:  amount,
+    bucket:  bucket,
+    notes:   document.getElementById('s-note').value.trim() || 'Transfer to ' + bucket
+  };
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    body:   JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(res => {
+    btn.disabled = false;
+    btn.textContent = 'Log Transfer';
+    if (res.success) {
+      closeSavingsPanel();
+      showToast('Saved ' + fmt(amount) + ' to ' + bucket);
+      setTimeout(loadData, 1000);
+    } else {
+      showToast('Error: ' + (res.error || 'Unknown'), true);
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.textContent = 'Log Transfer';
+    showToast('Connection failed. Try again.', true);
+  });
+}
+
+// Swipe to close savings panel
+document.getElementById('sav-panel').addEventListener('touchstart', e => {
+  _sy = e.touches[0].clientY;
+}, { passive: true });
+document.getElementById('sav-panel').addEventListener('touchend', e => {
+  if (e.changedTouches[0].clientY - _sy > 55) closeSavingsPanel();
 }, { passive: true });
 </script>
 </body>
